@@ -4,7 +4,7 @@ void init_router()
 {
 	if (BirdConf)
 	{
-		int fd = open(BirdConf, O_RDWR|O_CREAT|O_TRUNC);
+		int fd = open(BirdConf, O_RDWR|O_CREAT|O_TRUNC, 0666);
 		if (!fd)
 		{
 			perror("Error opening Bird Config");
@@ -17,7 +17,7 @@ void init_router()
 
 	if (Bird6Conf)
 	{
-		int fd = open(Bird6Conf, O_RDWR|O_CREAT|O_TRUNC);
+		int fd = open(Bird6Conf, O_RDWR|O_CREAT|O_TRUNC, 0666);
 		if (!fd)
 		{
 			perror("Error opening Bird6 Config");
@@ -32,7 +32,7 @@ void update_router()
 {
 	if (BirdConf)
 	{
-		int fd = open(BirdConf, O_RDWR|O_CREAT|O_TRUNC);
+		int fd = open(BirdConf, O_RDWR|O_CREAT|O_TRUNC, 0666);
 		if (!fd)
 		{
 			perror("Error opening Bird Config");
@@ -62,11 +62,12 @@ void update_router()
 			Node=Node->Next;
 		}
 		close(fd);
+		if (fork() == 0) execlp("birdc", "birdc", "conf", NULL);
 	}
 
 	if (Bird6Conf)
 	{
-		int fd = open(Bird6Conf, O_RDWR|O_CREAT|O_TRUNC);
+		int fd = open(Bird6Conf, O_RDWR|O_CREAT|O_TRUNC, 0666);
 		if (!fd)
 		{
 			perror("Error opening Bird6 Config");
@@ -96,5 +97,6 @@ void update_router()
 			Node=Node->Next;
 		}
 		close(fd);
+		if (fork() == 0) execlp("birdc6", "birdc6", "conf", NULL);
 	}
 }
