@@ -387,10 +387,13 @@ void network_send_nodelist(struct Node* node)
 			send_packet(node, 0x03, nodelist, 1+count*20);
 			count=0;
 		}
-		struct NodeEntry* Entry = (struct NodeEntry*)(nodelist+1+(20*count));
-		memcpy(&Entry->address, &Node->address.sin6_addr, sizeof(Entry->address));
-		Entry->port=Node->address.sin6_port;
-		count++;
+		if (Node->State)
+		{
+			struct NodeEntry* Entry = (struct NodeEntry*)(nodelist+1+(20*count));
+			memcpy(&Entry->address, &Node->address.sin6_addr, sizeof(Entry->address));
+			Entry->port=Node->address.sin6_port;
+			count++;
+		}
 		Node = Node->Next;
 	}
 	nodelist[0] = count;
