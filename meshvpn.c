@@ -382,20 +382,30 @@ int main(int argc, char** argv)
 	struct timeval timeout;
 	timeout.tv_sec = 1;
 	timeout.tv_usec = 0;
+	time_t lastinit = 0;
 	time_t lastrefresh = 0;
+	time_t lastflush = 0;
 	int FD_MAX = MAX(tun_fd, network_socket);
 	while(1)
 	{
 		select(FD_MAX + 1, &read_fds, NULL, NULL, &timeout);
 		unsigned char buffer[10000];
-		if (time(NULL) - lastrefresh >= 5)
+		if (time(NULL) - lastinit >= 15)
 		{
 			network_send_init_packets();
+			lastinit = time(NULL);
+		}
+		if (time(NULL) != lastrefresh)
+		{
 			network_send_nodelists();
 			network_send_pings();
+			lastrefresh = time(NULL);
+		}
+		if (time(NULL) - lastflush >= 60)
+		{
 			network_purge_nodelist();
 			write_nodelist_file();
-			lastrefresh = time(NULL);
+			lastflush = time(NULL);
 		}
 		if (FD_ISSET(tun_fd, &read_fds))
 		{
