@@ -12,6 +12,8 @@ struct Node{
     struct in6_addr IPv6;
     struct Node* Next;
     struct Node* Previous;
+    struct timeval LastPing;
+    int Latency;
 };
 struct Node* FirstNode;
 struct EthernetNode{

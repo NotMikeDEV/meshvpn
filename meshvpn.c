@@ -1,4 +1,3 @@
-
 #include "globals.h"
 
 #define MAX(a,b) \
@@ -75,7 +74,7 @@ void write_nodelist_file()
 					sprintf(NodeKey+(x*2), "%02x", Node->Key[x]);
 				}
 				inet_ntop(AF_INET6, &Node->address.sin6_addr, IP, sizeof(IP));
-				sprintf(Line, "node %s %u %s %u\n", IP, htons(Node->address.sin6_port), NodeKey, Node->State);
+				sprintf(Line, "node %s %u %s %u (%ums)\n", IP, htons(Node->address.sin6_port), NodeKey, Node->State, Node->Latency);
 				write(fd, Line, strlen(Line));
 				if (Debug)
 					printf("%s", Line);
@@ -393,6 +392,7 @@ int main(int argc, char** argv)
 		{
 			network_send_init_packets();
 			network_send_nodelists();
+			network_send_pings();
 			network_purge_nodelist();
 			write_nodelist_file();
 			lastrefresh = time(NULL);

@@ -220,7 +220,7 @@ void network_parse(unsigned char* packet, int length, struct sockaddr_in6* addr)
 			{
 				sprintf(remote_key+(x*2), "%02x", packet[1+x]);
 			}
-			printf("Got Keepalive packet from %s (%s %u)\n", remote_key, IP, htons(addr->sin6_port));
+			printf("Got PING packet from %s (%s %u)\n", remote_key, IP, htons(addr->sin6_port));
 		}
 		struct Node* Node = node_find_key(from_key);
 		if (!Node)
@@ -229,6 +229,40 @@ void network_parse(unsigned char* packet, int length, struct sockaddr_in6* addr)
 			return;
 		}
 		Node->LastRecv=time(NULL);
+		send_packet(Node, 0xF1, NULL, 0);
+	}	break;
+	case 0xF1:
+	{
+		if (memcmp(to_key, node_key, sizeof(node_key)))
+			return;
+		struct Node* Node = node_find_key(from_key);
+		if (!Node)
+		{
+			return;
+		}
+		Node->LastRecv=time(NULL);
+		struct timeval ReplyTime={0};
+		gettimeofday(&ReplyTime, NULL);
+		struct timeval diff={0};
+		diff.tv_sec = ReplyTime.tv_sec - Node->LastPing.tv_sec;
+		diff.tv_usec = ReplyTime.tv_usec - Node->LastPing.tv_usec;
+		if (diff.tv_usec < 1)
+		{
+			diff.tv_usec+=1000000;
+			diff.tv_sec-=1;
+		}
+		Node->Latency = diff.tv_sec*1000 + diff.tv_usec/1000;
+		if (Debug)
+		{
+			char remote_key[sizeof(node_key)*2+1];
+			for (int x=0; x<sizeof(node_key); x++)
+			{
+				sprintf(remote_key+(x*2), "%02x", packet[1+x]);
+			}
+			printf("Got PING REPLY packet from %s (%s %u)\n", remote_key, IP, htons(addr->sin6_port));
+			printf("Latency: %dms\n", Node->Latency);
+		}
+		update_router();
 	}	break;
 	case 0xFF:
 	{
@@ -290,7 +324,7 @@ void network_ping(struct Node* Node)
 {
 	if (Debug)
 	{
-		printf("Sending keepalive to ");
+		printf("Sending PING to ");
 		for (int x=0; x<sizeof(node_key); x++)
 		{
 			printf("%02x", Node->Key[x]);
@@ -299,7 +333,20 @@ void network_ping(struct Node* Node)
 		inet_ntop(AF_INET6, &Node->address.sin6_addr, IP, sizeof(IP));
 		printf(" (%s %u)\n", IP, htons(Node->address.sin6_port));
 	}
+	gettimeofday(&Node->LastPing, NULL);
 	send_packet(Node, 0xF0, NULL, 0);
+}
+void network_send_pings()
+{
+	struct Node* Node = FirstNode;
+	while (Node)
+	{
+		if (Node->State && Node->LastPing.tv_sec < time(NULL) - 60)
+		{
+			network_ping(Node);
+		}
+		Node = Node->Next;
+	}
 }
 void network_send_init_packets()
 {

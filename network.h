@@ -1,7 +1,7 @@
 void init_network(uint16_t UDPPort);
 void network_parse(unsigned char* packet, int length, struct sockaddr_in6* addr);
 void network_send_ethernet_packet(unsigned char* buffer, int len);
-void network_ping(struct Node* node);
+void network_send_pings();
 void network_send_nodelists();
 void network_send_init_packets();
 void network_purge_nodelist();

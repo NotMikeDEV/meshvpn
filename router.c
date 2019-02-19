@@ -53,8 +53,8 @@ void update_router()
 					sprintf(KeyStr+(x*2), "%02x", Node->Key[x]);
 				}
 				char ConfEntry[1024];
-				sprintf(ConfEntry, "protocol bgp VPN_%s {\n\ttable NotVPN;\n\timport all;\n\texport all;\n\tlocal as 65535;\n\tneighbor %s as 65535;\n\tdirect;\n};\n\n",
-					KeyStr, NodeAddress);
+				sprintf(ConfEntry, "protocol bgp VPN_%s {\n\ttable MeshVPN;\n\timport all;\n\texport all;\n\tlocal as 65535;\n\tneighbor %s as 65535;\n\tdirect;\n\tdefault bgp_med %u;\n};\n\n",
+					KeyStr, NodeAddress, Node->Latency?Node->Latency:1000);
 				
 				write(fd, ConfEntry, strlen(ConfEntry));
 				write(fd, "\n", 1);
@@ -87,8 +87,8 @@ void update_router()
 					sprintf(KeyStr+(x*2), "%02x", Node->Key[x]);
 				}
 				char ConfEntry[1024];
-				sprintf(ConfEntry, "protocol bgp VPN_%s {\n\ttable NotVPN;\n\timport all;\n\texport all;\n\tlocal as 65535;\n\tneighbor %s as 65535;\n\tdirect;\n};\n\n",
-					KeyStr, NodeAddress);
+				sprintf(ConfEntry, "protocol bgp VPN_%s {\n\ttable MeshVPN;\n\timport all;\n\texport all;\n\tlocal as 65535;\n\tneighbor %s as 65535;\n\tdirect;\n\tdefault bgp_med %u;\n};\n\n",
+					KeyStr, NodeAddress, Node->Latency?Node->Latency:1000);
 				
 				write(fd, ConfEntry, strlen(ConfEntry));
 				write(fd, "\n", 1);
