@@ -50,6 +50,8 @@ void send_packet(struct Node* to, unsigned char type, unsigned char* packet, int
 	int cipherlen = encrypt_packet(full_packet, sizeof(node_key)*2 + 1 + len, ciphertext);
 	sendto(network_socket, ciphertext, cipherlen, 0, (struct sockaddr *)&to->address, sizeof(struct sockaddr_in6));
 	to->LastSend = time(NULL);
+	free(full_packet);
+	free(ciphertext);
 }
 void network_send_ethernet_packet(unsigned char* buffer, int len)
 {
