@@ -42,7 +42,8 @@ define Build/Compile
 	$(TARGET_CC) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/crypto.o -c $(PKG_BUILD_DIR)/crypto.c
 	$(TARGET_CC) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/network.o -c $(PKG_BUILD_DIR)/network.c
 	$(TARGET_CC) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/router.o -c $(PKG_BUILD_DIR)/router.c
-	$(TARGET_CC) $(TARGET_LDFLAGS) -o $(PKG_BUILD_DIR)/$1 $(PKG_BUILD_DIR)/meshvpn.o $(PKG_BUILD_DIR)/node.o $(PKG_BUILD_DIR)/crypto.o $(PKG_BUILD_DIR)/network.o $(PKG_BUILD_DIR)/router.o
+	$(TARGET_CC) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/router_client.o -c $(PKG_BUILD_DIR)/router_client.c
+	$(TARGET_CC) $(TARGET_LDFLAGS) -o $(PKG_BUILD_DIR)/$1 $(PKG_BUILD_DIR)/meshvpn.o $(PKG_BUILD_DIR)/node.o $(PKG_BUILD_DIR)/crypto.o $(PKG_BUILD_DIR)/network.o $(PKG_BUILD_DIR)/router.o $(PKG_BUILD_DIR)/router_client.o
 endef
 
 # Package install instructions; create a directory inside the package to hold our executable, and then copy the executable we built previously into the folder

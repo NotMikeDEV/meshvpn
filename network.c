@@ -37,6 +37,7 @@ void init_network(uint16_t UDPPort)
 		perror("bind failed");
 		exit(-1);
 	}
+	fcntl(network_socket, F_SETFL, O_NONBLOCK);
 }
 void send_packet(struct Node* to, unsigned char type, unsigned char* packet, int len)
 {
@@ -60,7 +61,7 @@ void network_send_ethernet_packet(unsigned char* buffer, int len)
 	{
 		char IP[74];
 		inet_ntop(AF_INET6, &Node->address.sin6_addr, IP, sizeof(IP));
-		if (Debug>1)
+		if (Debug>2)
 			printf("Sent packet for %02X%02X%02X%02X%02X%02X to %s %02X%02X%02X%02X%02X%02X\n", buffer[4], buffer[5], buffer[6], buffer[7], buffer[8], buffer[9], IP,
 				Node->Key[0], Node->Key[1], Node->Key[2], Node->Key[3], Node->Key[4], Node->Key[5]);
 		send_packet(Node, 0xFF, buffer, len);
@@ -71,7 +72,7 @@ void network_send_ethernet_packet(unsigned char* buffer, int len)
 	{
 		if (Node->State == 1)
 		{
-			if (Debug>1)
+			if (Debug>2)
 			{
 				char IP[74];
 				inet_ntop(AF_INET6, &Node->address.sin6_addr, IP, sizeof(IP));
@@ -264,7 +265,6 @@ void network_parse(unsigned char* packet, int length, struct sockaddr_in6* addr)
 			printf("Got PING REPLY packet from %s (%s %u)\n", remote_key, IP, htons(addr->sin6_port));
 			printf("Latency: %dms\n", Node->Latency);
 		}
-		update_router();
 	}	break;
 	case 0xFF:
 	{
@@ -278,7 +278,7 @@ void network_parse(unsigned char* packet, int length, struct sockaddr_in6* addr)
 				node_add_mac(Node, payload+4+6);
 			else
 			{
-				if (Debug>1)
+				if (Debug>2)
 				{
 					char remote_key[sizeof(node_key)*2+1];
 					for (int x=0; x<sizeof(node_key); x++)
@@ -292,7 +292,7 @@ void network_parse(unsigned char* packet, int length, struct sockaddr_in6* addr)
 			}
 		}
 		Node->LastRecv = time(NULL);
-		if (Debug>1)
+		if (Debug>2)
 		{
 			char remote_key[sizeof(node_key)*2+1];
 			for (int x=0; x<sizeof(node_key); x++)
@@ -343,7 +343,7 @@ void network_send_pings()
 	struct Node* Node = FirstNode;
 	while (Node)
 	{
-		if (Node->State && Node->LastPing.tv_sec < time(NULL) - 60)
+		if (Node->State && Node->LastPing.tv_sec < time(NULL) - 60 && !Node->Latency)
 		{
 			network_ping(Node);
 		}

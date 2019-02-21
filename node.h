@@ -1,4 +1,20 @@
 unsigned char node_key[6];
+struct IPv4_router_conn{
+	unsigned char State;
+	int Socket;
+	unsigned char* RecvBuffer[255];
+	unsigned char RecvOffset;
+	int Latency;
+	struct RouteEntry4* RouteList;
+};
+struct IPv6_router_conn{
+	unsigned char State;
+	int Socket;
+	unsigned char* RecvBuffer[255];
+	unsigned char RecvOffset;
+	int Latency;
+	struct RouteEntry6* RouteList;
+};
 struct Node{
     unsigned char Static;
     unsigned char State;
@@ -9,7 +25,9 @@ struct Node{
     time_t LastSend;
     time_t LastSendNodeList;
     struct in_addr IPv4;
+    struct IPv4_router_conn RouterConn4;
     struct in6_addr IPv6;
+    struct IPv6_router_conn RouterConn6;
     struct Node* Next;
     struct Node* Previous;
     struct timeval LastPing;

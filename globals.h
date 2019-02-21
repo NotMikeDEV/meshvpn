@@ -7,10 +7,14 @@
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <netinet/tcp.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
+#include <asm/types.h>
 #include <linux/if.h>
 #include <linux/if_tun.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -19,10 +23,11 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "router.h"
 #include "node.h"
+#include "router_client.h"
 #include "crypto.h"
 #include "network.h"
-#include "router.h"
 unsigned char network_key[32];
 int network_socket;
 int tun_fd;
@@ -44,3 +49,8 @@ struct pcaprec_hdr {
         uint32_t orig_len;       /* actual length of packet */
 };
 int pcap_file;
+#define MAX(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a > _b ? _a : _b; })
+

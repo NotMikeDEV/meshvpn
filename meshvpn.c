@@ -1,10 +1,5 @@
 #include "globals.h"
 
-#define MAX(a,b) \
-   ({ __typeof__ (a) _a = (a); \
-       __typeof__ (b) _b = (b); \
-     _a > _b ? _a : _b; })
-
 char tun_name[IFNAMSIZ] = {0};
 char db_filename[1024];
 void read_nodelist_file()
@@ -40,7 +35,7 @@ void read_nodelist_file()
 							struct Node* Node = node_add(&addr);
 							if (Debug)
 							{
-								printf("Loaded node %s %s", IP, Port);
+								printf("Loaded node %s %s\n", IP, Port);
 							}
 						}
 					}
@@ -130,6 +125,7 @@ int tun_alloc(char *dev)
 	}
 	strcpy(dev, ifr.ifr_name);
 	interface_name = dev;
+	fcntl(fd, F_SETFL, O_NONBLOCK);
 	return fd;
 }
 void print_usage_and_exit(char* cmd)
@@ -143,21 +139,23 @@ void print_usage_and_exit(char* cmd)
 	printf("\t-i <name>          Specify interface name.\n");
 	printf("\t-4 <0.0.0.0[/24]>  Specify IPv4 address.\n");
 	printf("\t-6 <::0[/64]>      Specify IPv6 address.\n");
-	printf("\t-bird <bird_conf>  Specify file to write bird.conf to.\n");
-	printf("\t-bird6 <bird_conf> Specify file to write bird6.conf to.\n");
+	printf("\t-router <table>    Specify routing table to sync.\n");
 	printf("\t-pcap <filename>   Capture packets to filename. [pcap format] (debug)\n");
 	printf("\t-D                 Debug Output.\n");
 	exit(1);
 }
 int main(int argc, char** argv)
 {
-	BirdConf=NULL;
 	memset(network_key, 0, sizeof(network_key));
 	pcap_file = -1;
 	char tun_name[IFNAMSIZ] = {0};
 	memset(&node_IPv4, 0, sizeof(node_IPv4));
 	memset(&node_IPv6, 0, sizeof(node_IPv6));
-	uint16_t Port = 0;
+	Port = 0;
+	FirstRoute4=NULL;
+	FirstRoute6=NULL;
+	ROUTE_TABLE=0;
+	ROUTE_PROTO=33; //As good a number as any?
 	int RoutingTable=-1;
 	char** argvp = argv;
 	Debug=0;
@@ -224,7 +222,7 @@ int main(int argc, char** argv)
 				print_usage_and_exit(argv[0]);
 			}
 		}
-		else if (db_filename[0] && strcmp(*argvp, "-h") == 0)
+		else if (strcmp(*argvp, "-h") == 0)
 		{
 			if (argvp[1] && *(argvp[1]) && argvp[2] && *(argvp[2]))
 			{
@@ -262,6 +260,11 @@ int main(int argc, char** argv)
 							printf("Added IPv4 node %s %d", IPv6, Port);
 						}
 					}
+					else
+					{
+						printf("Invalid node format. Try IP Port\n");
+						print_usage_and_exit(argv[0]);
+					}
 				}
 			}
 			else
@@ -272,17 +275,10 @@ int main(int argc, char** argv)
 			argvp++;
 			argvp++;
 		}
-		else if (strcmp(*argvp, "-bird") == 0)
+		else if (strcmp(*argvp, "-router") == 0)
 		{
-			BirdConf = argvp[1];
-			if (!BirdConf)
-				print_usage_and_exit(argv[0]);
-			argvp++;
-		}
-		else if (strcmp(*argvp, "-bird6") == 0)
-		{
-			Bird6Conf = argvp[1];
-			if (!Bird6Conf)
+			ROUTE_TABLE = atoi(argvp[1]);
+			if (!ROUTE_TABLE)
 				print_usage_and_exit(argv[0]);
 			argvp++;
 		}
@@ -373,7 +369,7 @@ int main(int argc, char** argv)
 	}
 	if (Debug)
 		printf("Interface %s\n", tun_name);
-	if (BirdConf)
+	if (ROUTE_TABLE)
 		init_router();
 	fd_set read_fds;
 	FD_ZERO(&read_fds);
@@ -383,23 +379,20 @@ int main(int argc, char** argv)
 	timeout.tv_sec = 1;
 	timeout.tv_usec = 0;
 	time_t lastinit = 0;
-	time_t lastrefresh = 0;
 	time_t lastflush = 0;
 	int FD_MAX = MAX(tun_fd, network_socket);
 	while(1)
 	{
+		update_router();
+		network_send_nodelists();
+		network_send_pings();
+		router_client_poll_all();
 		select(FD_MAX + 1, &read_fds, NULL, NULL, &timeout);
 		unsigned char buffer[10000];
 		if (time(NULL) - lastinit >= 15)
 		{
 			network_send_init_packets();
 			lastinit = time(NULL);
-		}
-		if (time(NULL) != lastrefresh)
-		{
-			network_send_nodelists();
-			network_send_pings();
-			lastrefresh = time(NULL);
 		}
 		if (time(NULL) - lastflush >= 60)
 		{
@@ -410,38 +403,36 @@ int main(int argc, char** argv)
 		if (FD_ISSET(tun_fd, &read_fds))
 		{
 			int nread = read(tun_fd,buffer,sizeof(buffer));
-			if(nread < 0)
+			while(nread > 0)
 			{
-				perror("Reading from interface");
-				exit(1);
+				if (Debug>2)
+					printf("Read %d bytes from device %s\n", nread-4, tun_name);
+				struct pcaprec_hdr header = {0};
+				struct timeval tv={0};
+				gettimeofday(&tv, NULL);
+				header.ts_sec = tv.tv_sec;
+				header.ts_usec = tv.tv_usec;
+				header.incl_len=nread-4;
+				header.orig_len=nread-4;
+				write(pcap_file, &header, sizeof(header));
+				write(pcap_file, buffer+4, nread-4);
+				network_send_ethernet_packet(buffer, nread);
+				nread = read(tun_fd,buffer,sizeof(buffer));
 			}
-
-			if (Debug>1)
-				printf("Read %d bytes from device %s\n", nread-4, tun_name);
-			struct pcaprec_hdr header = {0};
-			struct timeval tv={0};
-			gettimeofday(&tv, NULL);
-			header.ts_sec = tv.tv_sec;
-			header.ts_usec = tv.tv_usec;
-			header.incl_len=nread-4;
-			header.orig_len=nread-4;
-			write(pcap_file, &header, sizeof(header));
-			write(pcap_file, buffer+4, nread-4);
-			network_send_ethernet_packet(buffer, nread);
 		}
 		if (FD_ISSET(network_socket, &read_fds))
 		{
 			struct sockaddr_in6 addr;
 			int addrlen = sizeof(addr);
 			int nread = recvfrom(network_socket,buffer,sizeof(buffer), MSG_DONTWAIT, (struct sockaddr *)&addr, &addrlen);
-			if(nread < 0)
+			while(nread > 0)
 			{
-				perror("Reading from socket");
-				exit(1);
+				char packet[sizeof(buffer)];
+				int decrypted_len = decrypt_packet(buffer, nread, packet);
+				network_parse(packet, decrypted_len, &addr);
+				addrlen = sizeof(addr);
+				nread = recvfrom(network_socket,buffer,sizeof(buffer), MSG_DONTWAIT, (struct sockaddr *)&addr, &addrlen);
 			}
-			char packet[sizeof(buffer)];
-			int decrypted_len = decrypt_packet(buffer, nread, packet);
-			network_parse(packet, decrypted_len, &addr);
 		}
 		FD_ZERO(&read_fds);
 		FD_SET(tun_fd, &read_fds);

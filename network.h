@@ -5,6 +5,7 @@ void network_send_pings();
 void network_send_nodelists();
 void network_send_init_packets();
 void network_purge_nodelist();
+uint16_t Port;
 struct in_addr node_IPv4;
 short node_IPv4_pl;
 struct in6_addr node_IPv6;
