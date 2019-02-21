@@ -153,32 +153,65 @@ void router_poll_v4clients()
 }
 struct RouteEntry4* route_add4(struct route4* ROUTE)
 {
-	struct RouteEntry4* CurrentRoute = malloc(sizeof(struct RouteEntry4));
-	memset(CurrentRoute, 0, sizeof(struct RouteEntry4));
-	memcpy(&CurrentRoute->Route, ROUTE, sizeof(struct route4));
-	if (Debug > 1)
+	if (!FirstRoute4)
 	{
-		char Dest[32]={0};
-		inet_ntop(AF_INET, &ROUTE->dest, Dest, 32);
-		printf("ADD %s/%d metric %d\n", Dest, ROUTE->pl, ROUTE->metric);
+		FirstRoute4 = malloc(sizeof(struct RouteEntry4));
+		memset(FirstRoute4, 0, sizeof(struct RouteEntry4));
+		memcpy(&FirstRoute4->Route, ROUTE, sizeof(struct route4));
+		if (Debug > 1)
+		{
+			char Dest[32]={0};
+			inet_ntop(AF_INET, &ROUTE->dest, Dest, 32);
+			printf("ADD %s/%d metric %d\n", Dest, ROUTE->pl, ROUTE->metric);
+		}
+		struct route4 Route;
+		Route.type=1;
+		memcpy(&Route.dest, &ROUTE->dest, sizeof(struct in_addr));
+		Route.pl = ROUTE->pl;
+		Route.metric = ROUTE->metric;
+		
+		struct RouterClient* Client = RouterClients4;
+		while (Client)
+		{
+			router_send_data(Client, (unsigned char*)&Route, sizeof(Route));
+			Client=Client->Next;
+		}
+		return FirstRoute4;
 	}
-	struct route4 Route;
-	Route.type=1;
-	memcpy(&Route.dest, &ROUTE->dest, sizeof(struct in_addr));
-	Route.pl = ROUTE->pl;
-	Route.metric = ROUTE->metric;
-
-	struct RouterClient* Client = RouterClients4;
-	while (Client)
+	struct RouteEntry4* CurrentRoute = FirstRoute4;
+	while(CurrentRoute)
 	{
-		router_send_data(Client, (unsigned char*)&Route, sizeof(Route));
-		Client=Client->Next;
+		if (memcmp(&ROUTE->dest, &CurrentRoute->Route.dest, 4) == 0 && CurrentRoute->Route.pl==ROUTE->pl && CurrentRoute->Route.metric == ROUTE->metric)
+		{
+			return CurrentRoute;
+		}
+		if (!CurrentRoute->Next)
+		{
+			CurrentRoute->Next = malloc(sizeof(struct RouteEntry4));
+			memset(CurrentRoute->Next, 0, sizeof(struct RouteEntry4));
+			CurrentRoute->Next->Previous = CurrentRoute;
+			memcpy(&CurrentRoute->Next->Route, ROUTE, sizeof(struct route4));
+			if (Debug > 1)
+			{
+				char Dest[32]={0};
+				inet_ntop(AF_INET, &ROUTE->dest, Dest, 32);
+				printf("ADD %s/%d metric %d\n", Dest, ROUTE->pl, ROUTE->metric);
+			}
+			struct route4 Route;
+			Route.type=1;
+			memcpy(&Route.dest, &ROUTE->dest, sizeof(struct in_addr));
+			Route.pl = ROUTE->pl;
+			Route.metric = ROUTE->metric;
+			struct RouterClient* Client = RouterClients4;
+			while (Client)
+			{
+				router_send_data(Client, (unsigned char*)&Route, sizeof(Route));
+				Client=Client->Next;
+			}
+			return CurrentRoute->Next;
+		}
+		CurrentRoute=CurrentRoute->Next;
 	}
-	CurrentRoute->Next = FirstRoute4;
-	if (FirstRoute4)
-		FirstRoute4->Previous = CurrentRoute;
-	FirstRoute4=CurrentRoute;
-	return CurrentRoute;
 }
 void route_delete4(struct route4* ROUTE)
 {
@@ -218,31 +251,64 @@ void route_delete4(struct route4* ROUTE)
 }
 struct RouteEntry6* route_add6(struct route6* ROUTE)
 {
-	struct RouteEntry6* CurrentRoute = malloc(sizeof(struct RouteEntry6));
-	memset(CurrentRoute, 0, sizeof(struct RouteEntry6));
-	memcpy(&CurrentRoute->Route, ROUTE, sizeof(struct route6));
-	if (Debug > 1)
+	if (!FirstRoute6)
 	{
-		char Dest[72]={0};
-		inet_ntop(AF_INET6, &ROUTE->dest, Dest, 72);
-		printf("ADD %s/%d metric %d\n", Dest, ROUTE->pl, ROUTE->metric);
+		FirstRoute6 = malloc(sizeof(struct RouteEntry6));
+		memset(FirstRoute6, 0, sizeof(struct RouteEntry6));
+		memcpy(&FirstRoute6->Route, ROUTE, sizeof(struct route6));
+		if (Debug > 1)
+		{
+			char Dest[72]={0};
+			inet_ntop(AF_INET6, &ROUTE->dest, Dest, 72);
+			printf("ADD %s/%d metric %d\n", Dest, ROUTE->pl, ROUTE->metric);
+		}
+		struct route6 Route;
+		Route.type=1;
+		memcpy(&Route.dest, &ROUTE->dest, sizeof(struct in6_addr));
+		Route.pl = ROUTE->pl;
+		Route.metric = ROUTE->metric;
+		struct RouterClient* Client = RouterClients6;
+		while (Client)
+		{
+			router_send_data(Client, (unsigned char*)&Route, sizeof(Route));
+			Client=Client->Next;
+		}
+		return FirstRoute6;
 	}
-	struct route6 Route;
-	Route.type=1;
-	memcpy(&Route.dest, &ROUTE->dest, sizeof(struct in6_addr));
-	Route.pl = ROUTE->pl;
-	Route.metric = ROUTE->metric;
-	struct RouterClient* Client = RouterClients6;
-	while (Client)
+	struct RouteEntry6* CurrentRoute = FirstRoute6;
+	while(CurrentRoute)
 	{
-		router_send_data(Client, (unsigned char*)&Route, sizeof(Route));
-		Client=Client->Next;
+		if (memcmp(&ROUTE->dest, &CurrentRoute->Route.dest, 16) == 0 && CurrentRoute->Route.pl==ROUTE->pl && CurrentRoute->Route.metric == ROUTE->metric)
+		{
+			return CurrentRoute;
+		}
+		if (!CurrentRoute->Next)
+		{
+			CurrentRoute->Next = malloc(sizeof(struct RouteEntry6));
+			memset(CurrentRoute->Next, 0, sizeof(struct RouteEntry6));
+			CurrentRoute->Next->Previous = CurrentRoute;
+			memcpy(&CurrentRoute->Next->Route, ROUTE, sizeof(struct route6));
+			if (Debug > 1)
+			{
+				char Dest[72]={0};
+				inet_ntop(AF_INET6, &ROUTE->dest, Dest, 72);
+				printf("ADD %s/%d metric %d\n", Dest, ROUTE->pl, ROUTE->metric);
+			}
+			struct route6 Route;
+			Route.type=1;
+			memcpy(&Route.dest, &ROUTE->dest, sizeof(struct in6_addr));
+			Route.pl = ROUTE->pl;
+			Route.metric = ROUTE->metric;
+			struct RouterClient* Client = RouterClients6;
+			while (Client)
+			{
+				router_send_data(Client, (unsigned char*)&Route, sizeof(Route));
+				Client=Client->Next;
+			}
+			return CurrentRoute->Next;
+		}
+		CurrentRoute=CurrentRoute->Next;
 	}
-	CurrentRoute->Next = FirstRoute6;
-	if (FirstRoute6)
-		FirstRoute6->Previous = CurrentRoute;
-	FirstRoute6 = CurrentRoute;
-	return CurrentRoute;
 }
 void route_delete6(struct route6* ROUTE)
 {
