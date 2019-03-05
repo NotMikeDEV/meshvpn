@@ -55,7 +55,7 @@ void netlink_add_IPv4(struct in_addr* dest, unsigned char pl, struct in_addr* ga
 		printf("Added route %s/%u via %s (prio %u)\n", Target, pl, Gateway, metric);
 	}
 }
-void netlink_del_IPv4(struct in_addr* dest, unsigned char pl, struct in_addr* gateway, int metric)
+void netlink_del_IPv4(struct in_addr* dest, unsigned char pl, struct in_addr* gateway)
 {
 	char buffer[1024]={0};
 	struct nlmsghdr* hdr = (struct nlmsghdr*)buffer;
@@ -84,12 +84,6 @@ void netlink_del_IPv4(struct in_addr* dest, unsigned char pl, struct in_addr* ga
 	memcpy(RTA_DATA(rta), gateway, sizeof(struct in_addr));
 	hdr->nlmsg_len += rta->rta_len;
 
-	rta = (struct rtattr *)(buffer+hdr->nlmsg_len);
-	rta->rta_type = RTA_PRIORITY;
-	rta->rta_len = RTA_LENGTH(sizeof(int));
-	memcpy(RTA_DATA(rta), &metric, sizeof(int));
-	hdr->nlmsg_len += rta->rta_len;
-
 	struct iovec io={0};
 	io.iov_base = &buffer;
 	io.iov_len = hdr->nlmsg_len;
@@ -107,7 +101,7 @@ void netlink_del_IPv4(struct in_addr* dest, unsigned char pl, struct in_addr* ga
 		char Gateway[72];
 		inet_ntop(AF_INET, dest, Target, sizeof(Target));
 		inet_ntop(AF_INET, gateway, Gateway, sizeof(Gateway));
-		printf("Deleted route %s/%u via %s (prio %u)\n", Target, pl, Gateway, metric);
+		printf("Deleted route %s/%u via %s\n", Target, pl, Gateway);
 	}
 }
 void netlink_add_IPv6(struct in6_addr* dest, unsigned char pl, struct in6_addr* gateway, int metric)
@@ -165,7 +159,7 @@ void netlink_add_IPv6(struct in6_addr* dest, unsigned char pl, struct in6_addr* 
 		printf("Added route %s/%u via %s (prio %u)\n", Target, pl, Gateway, metric);
 	}
 }
-void netlink_del_IPv6(struct in6_addr* dest, unsigned char pl, struct in6_addr* gateway, int metric)
+void netlink_del_IPv6(struct in6_addr* dest, unsigned char pl, struct in6_addr* gateway)
 {
 	char buffer[1024]={0};
 	struct nlmsghdr* hdr = (struct nlmsghdr*)buffer;
@@ -194,12 +188,6 @@ void netlink_del_IPv6(struct in6_addr* dest, unsigned char pl, struct in6_addr* 
 	memcpy(RTA_DATA(rta), gateway, sizeof(struct in6_addr));
 	hdr->nlmsg_len += rta->rta_len;
 
-	rta = (struct rtattr *)(buffer+hdr->nlmsg_len);
-	rta->rta_type = RTA_PRIORITY;
-	rta->rta_len = RTA_LENGTH(sizeof(int));
-	memcpy(RTA_DATA(rta), &metric, sizeof(int));
-	hdr->nlmsg_len += rta->rta_len;
-
 	struct iovec io={0};
 	io.iov_base = &buffer;
 	io.iov_len = hdr->nlmsg_len;
@@ -217,7 +205,7 @@ void netlink_del_IPv6(struct in6_addr* dest, unsigned char pl, struct in6_addr* 
 		char Gateway[192];
 		inet_ntop(AF_INET6, dest, Target, sizeof(Target));
 		inet_ntop(AF_INET6, gateway, Gateway, sizeof(Gateway));
-		printf("Deleted route %s/%u via %s (prio %u)\n", Target, pl, Gateway, metric);
+		printf("Deleted route %s/%u via %s\n", Target, pl, Gateway);
 	}
 }
 
@@ -289,7 +277,7 @@ void router_client_poll(struct Node* Node)
 							{
 								if (Debug)
 									printf("Delete IPv4 Route\n");
-								netlink_del_IPv4(&Route->dest, Route->pl, &Node->IPv4, Route->metric + Node->Latency);
+								netlink_del_IPv4(&Route->dest, Route->pl, &Node->IPv4);
 								if (CurrentRoute->Next)
 									CurrentRoute->Next->Previous=CurrentRoute->Previous;
 								if (CurrentRoute->Previous)
@@ -312,7 +300,7 @@ void router_client_poll(struct Node* Node)
 					struct RouteEntry4* NextRoute = CurrentRoute->Next;
 					if (Debug)
 						printf("Delete IPv4 Route (Node Disconnect)\n");
-					netlink_del_IPv4(&CurrentRoute->Route.dest, CurrentRoute->Route.pl, &Node->IPv4, CurrentRoute->Route.metric + Node->Latency);
+					netlink_del_IPv4(&CurrentRoute->Route.dest, CurrentRoute->Route.pl, &Node->IPv4);
 					free(CurrentRoute);
 					CurrentRoute = NextRoute;
 				}
@@ -389,7 +377,7 @@ void router_client_poll(struct Node* Node)
 							{
 								if (Debug)
 									printf("Delete IPv6 Route\n");
-								netlink_del_IPv6(&Route->dest, Route->pl, &Node->IPv6, Route->metric + Node->Latency);
+								netlink_del_IPv6(&Route->dest, Route->pl, &Node->IPv6);
 								if (CurrentRoute->Next)
 									CurrentRoute->Next->Previous=CurrentRoute->Previous;
 								if (CurrentRoute->Previous)
@@ -412,7 +400,7 @@ void router_client_poll(struct Node* Node)
 					struct RouteEntry6* NextRoute = CurrentRoute->Next;
 					if (Debug)
 						printf("Delete IPv6 Route (Node Disconnect)\n");
-					netlink_del_IPv6(&CurrentRoute->Route.dest, CurrentRoute->Route.pl, &Node->IPv6, CurrentRoute->Route.metric + Node->Latency);
+					netlink_del_IPv6(&CurrentRoute->Route.dest, CurrentRoute->Route.pl, &Node->IPv6);
 					free(CurrentRoute);
 					CurrentRoute = NextRoute;
 				}
