@@ -1,5 +1,15 @@
 #include "globals.h"
-
+void term(int signum)
+{
+    	struct Node* Node=FirstNode;
+	while (Node)
+	{
+		Node->State=0;
+		router_client_poll(Node);
+		Node=Node->Next;
+	}
+	exit(0);
+}
 char tun_name[IFNAMSIZ] = {0};
 char db_filename[1024];
 void read_nodelist_file()
@@ -146,6 +156,11 @@ void print_usage_and_exit(char* cmd)
 }
 int main(int argc, char** argv)
 {
+	struct sigaction action;
+	memset(&action, 0, sizeof(struct sigaction));
+	action.sa_handler = term;
+	sigaction(SIGTERM, &action, NULL);
+	
 	memset(network_key, 0, sizeof(network_key));
 	pcap_file = -1;
 	char tun_name[IFNAMSIZ] = {0};
