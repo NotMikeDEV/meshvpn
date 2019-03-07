@@ -8,12 +8,14 @@ struct route4{
 	struct in_addr dest;
 	unsigned char pl;
 	unsigned char type;
+	int interface;
 };
 struct route6{
 	uint32_t metric;
 	struct in6_addr dest;
 	unsigned char pl;
 	unsigned char type;
+	int interface;
 };
 struct RouteEntry4{
 	struct route4 Route;

@@ -162,7 +162,7 @@ struct RouteEntry4* route_add4(struct route4* ROUTE)
 		{
 			char Dest[32]={0};
 			inet_ntop(AF_INET, &ROUTE->dest, Dest, 32);
-			printf("ADD %s/%d metric %d\n", Dest, ROUTE->pl, ROUTE->metric);
+			printf("ADD %s/%d metric %d (id%d)\n", Dest, ROUTE->pl, ROUTE->metric, ROUTE->interface);
 		}
 		struct route4 Route;
 		Route.type=1;
@@ -195,7 +195,7 @@ struct RouteEntry4* route_add4(struct route4* ROUTE)
 			{
 				char Dest[32]={0};
 				inet_ntop(AF_INET, &ROUTE->dest, Dest, 32);
-				printf("ADD %s/%d metric %d\n", Dest, ROUTE->pl, ROUTE->metric);
+				printf("ADD %s/%d metric %d (if%d)\n", Dest, ROUTE->pl, ROUTE->metric, ROUTE->interface);
 			}
 			struct route4 Route;
 			Route.type=1;
@@ -260,7 +260,7 @@ struct RouteEntry6* route_add6(struct route6* ROUTE)
 		{
 			char Dest[72]={0};
 			inet_ntop(AF_INET6, &ROUTE->dest, Dest, 72);
-			printf("ADD %s/%d metric %d\n", Dest, ROUTE->pl, ROUTE->metric);
+			printf("ADD %s/%d metric %d (if%d)\n", Dest, ROUTE->pl, ROUTE->metric, ROUTE->interface);
 		}
 		struct route6 Route;
 		Route.type=1;
@@ -292,7 +292,7 @@ struct RouteEntry6* route_add6(struct route6* ROUTE)
 			{
 				char Dest[72]={0};
 				inet_ntop(AF_INET6, &ROUTE->dest, Dest, 72);
-				printf("ADD %s/%d metric %d\n", Dest, ROUTE->pl, ROUTE->metric);
+				printf("ADD %s/%d metric %d (if%d)\n", Dest, ROUTE->pl, ROUTE->metric, ROUTE->interface);
 			}
 			struct route6 Route;
 			Route.type=1;
@@ -381,6 +381,10 @@ struct route4 parse_route4(struct nlmsghdr *nlh)
 		{
 			ROUTE.metric = *(int*)RTA_DATA(route_attribute);
 		}
+		if (route_attribute->rta_type == RTA_OIF)
+		{
+			ROUTE.interface = *(int*)RTA_DATA(route_attribute);
+		}
 		route_attribute = RTA_NEXT(route_attribute, route_attribute_len);
 	}
 	return ROUTE;
@@ -421,11 +425,89 @@ struct route6 parse_route6(struct nlmsghdr *nlh)
 		{
 			ROUTE.metric = *(int*)RTA_DATA(route_attribute);
 		}
+		if (route_attribute->rta_type == RTA_OIF)
+		{
+			ROUTE.interface = *(int*)RTA_DATA(route_attribute);
+		}
 		route_attribute = RTA_NEXT(route_attribute, route_attribute_len);
 	}
 	return ROUTE;
 }
-
+void parse_dellink(struct nlmsghdr *nh)
+{
+	struct ifinfomsg* MSG = (struct ifinfomsg*) NLMSG_DATA(nh);
+	if (nh->nlmsg_type == RTM_NEWLINK && MSG->ifi_flags&IFF_UP)
+		return;
+	printf("Del Interface %d\n", MSG->ifi_index);
+	{
+		struct RouteEntry4* CurrentRoute = FirstRoute4;
+		while(CurrentRoute)
+		{
+			if (CurrentRoute->Route.interface == MSG->ifi_index)
+			{
+				if (CurrentRoute->Next)
+					CurrentRoute->Next->Previous = CurrentRoute->Previous;
+				if (CurrentRoute->Previous)
+					CurrentRoute->Previous->Next = CurrentRoute->Next;
+				if (CurrentRoute == FirstRoute4)
+					FirstRoute4 = CurrentRoute->Next;
+				if (Debug > 1)
+				{
+					char Dest[72]={0};
+					inet_ntop(AF_INET, &CurrentRoute->Route.dest, Dest, 72);
+					printf("DEL ROUTE %s/%d metric %d\n", Dest, CurrentRoute->Route.pl, CurrentRoute->Route.metric);
+				}
+				struct route4 Route;
+				Route.type=0;
+				memcpy(&Route.dest, &CurrentRoute->Route.dest, sizeof(struct in_addr));
+				Route.pl = CurrentRoute->Route.pl;
+				Route.metric = CurrentRoute->Route.metric;
+				struct RouterClient* Client = RouterClients4;
+				while (Client)
+				{
+					router_send_data(Client, (unsigned char*)&Route, sizeof(Route));
+					Client=Client->Next;
+				}
+				free(CurrentRoute);
+				return;
+			}
+			CurrentRoute=CurrentRoute->Next;
+		}
+	}
+	struct RouteEntry6* CurrentRoute = FirstRoute6;
+	while(CurrentRoute)
+	{
+		if (CurrentRoute->Route.interface == MSG->ifi_index)
+		{
+			if (CurrentRoute->Next)
+				CurrentRoute->Next->Previous = CurrentRoute->Previous;
+			if (CurrentRoute->Previous)
+				CurrentRoute->Previous->Next = CurrentRoute->Next;
+			if (CurrentRoute == FirstRoute6)
+				FirstRoute6 = CurrentRoute->Next;
+			if (Debug > 1)
+			{
+				char Dest[72]={0};
+				inet_ntop(AF_INET6, &CurrentRoute->Route.dest, Dest, 72);
+				printf("DEL ROUTE %s/%d metric %d\n", Dest, CurrentRoute->Route.pl, CurrentRoute->Route.metric);
+			}
+			struct route6 Route;
+			Route.type=0;
+			memcpy(&Route.dest, &CurrentRoute->Route.dest, sizeof(struct in6_addr));
+			Route.pl = CurrentRoute->Route.pl;
+			Route.metric = CurrentRoute->Route.metric;
+			struct RouterClient* Client = RouterClients6;
+			while (Client)
+			{
+				router_send_data(Client, (unsigned char*)&Route, sizeof(Route));
+				Client=Client->Next;
+			}
+			free(CurrentRoute);
+			return;
+		}
+		CurrentRoute=CurrentRoute->Next;
+	}
+}
 void parse_netlink(struct nlmsghdr *nh)
 {
 	struct route4 ROUTE4 = parse_route4(nh);
@@ -445,6 +527,10 @@ void parse_netlink(struct nlmsghdr *nh)
 	if (ROUTE6.type == RTM_DELROUTE)
 	{
 		route_delete6(&ROUTE6);
+	}
+	if (nh->nlmsg_type == RTM_DELLINK || nh->nlmsg_type == RTM_NEWLINK)
+	{
+		parse_dellink(nh);
 	}
 }
 void init_router()
@@ -497,7 +583,7 @@ void init_router()
 	struct sockaddr_nl nladdr={0};
 	nladdr.nl_family = AF_NETLINK;
 	nladdr.nl_pid = getpid();
-	nladdr.nl_groups = RTMGRP_IPV4_ROUTE|RTMGRP_IPV6_ROUTE;
+	nladdr.nl_groups = RTMGRP_IPV4_ROUTE|RTMGRP_IPV6_ROUTE|RTMGRP_LINK;
 	bind(NLSOCK, (struct sockaddr*)&nladdr, sizeof(nladdr));
 	struct nl_req_t request={0};
 	request.hdr.nlmsg_len = sizeof(request);
