@@ -1,10 +1,6 @@
-CC=gcc
-
 install: meshvpn
 	cp meshvpn /sbin/meshvpn
 meshvpn: clean
-	${CC} -o meshvpn meshvpn.c node.c crypto.c network.c router.c router_client.c -ldl -lcrypto -lssl
-debian:
-	apt install 
+	g++ -g -O3 -o meshvpn *.cpp -ldl -lcrypto -lssl -std=c++11
 clean:
 	rm -f meshvpn

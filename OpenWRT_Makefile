@@ -3,12 +3,12 @@ include $(TOPDIR)/rules.mk
 # Name, version and release number
 # The name and version of your package are used to define the variable to point to the build directory of your package: $(PKG_BUILD_DIR)
 PKG_NAME:=meshvpn
-PKG_VERSION:=1.0
+PKG_VERSION:=2.0
 PKG_RELEASE:=1
 
 # Source settings (i.e. where to find the source codes)
 # This is a custom variable, used below
-SOURCE_DIR:=/root/meshvpn
+SOURCE_DIR:=/root/projects/MeshVPN2
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -18,7 +18,7 @@ define Package/meshvpn
   CATEGORY:=Network
   SUBMENU:=VPN
   TITLE:=MeshVPN
-  DEPENDS:=+libopenssl
+  DEPENDS:=+libopenssl +libstdcpp
 endef
 TARGET_LDFLAGS += -ldl -lcrypto -lssl
 
@@ -37,13 +37,21 @@ endef
 
 # Package build instructions; invoke the target-specific compiler to first compile the source file, and then to link the file into the final executable
 define Build/Compile
-	$(TARGET_CC) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/meshvpn.o -c $(PKG_BUILD_DIR)/meshvpn.c
-	$(TARGET_CC) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/node.o -c $(PKG_BUILD_DIR)/node.c
-	$(TARGET_CC) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/crypto.o -c $(PKG_BUILD_DIR)/crypto.c
-	$(TARGET_CC) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/network.o -c $(PKG_BUILD_DIR)/network.c
-	$(TARGET_CC) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/router.o -c $(PKG_BUILD_DIR)/router.c
-	$(TARGET_CC) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/router_client.o -c $(PKG_BUILD_DIR)/router_client.c
-	$(TARGET_CC) $(TARGET_LDFLAGS) -o $(PKG_BUILD_DIR)/$1 $(PKG_BUILD_DIR)/meshvpn.o $(PKG_BUILD_DIR)/node.o $(PKG_BUILD_DIR)/crypto.o $(PKG_BUILD_DIR)/network.o $(PKG_BUILD_DIR)/router.o $(PKG_BUILD_DIR)/router_client.o
+	$(TARGET_CXX) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/Crypto.o -c $(PKG_BUILD_DIR)/Crypto.cpp
+	$(TARGET_CXX) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/MeshVPN.o -c $(PKG_BUILD_DIR)/MeshVPN.cpp
+	$(TARGET_CXX) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/NetLink4.o -c $(PKG_BUILD_DIR)/NetLink4.cpp
+	$(TARGET_CXX) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/NetLink6.o -c $(PKG_BUILD_DIR)/NetLink6.cpp
+	$(TARGET_CXX) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/RemoteNode.o -c $(PKG_BUILD_DIR)/RemoteNode.cpp
+	$(TARGET_CXX) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/RouteClient4.o -c $(PKG_BUILD_DIR)/RouteClient4.cpp
+	$(TARGET_CXX) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/RouteClient6.o -c $(PKG_BUILD_DIR)/RouteClient6.cpp
+	$(TARGET_CXX) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/RouteServer4Client.o -c $(PKG_BUILD_DIR)/RouteServer4Client.cpp
+	$(TARGET_CXX) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/RouteServer4.o -c $(PKG_BUILD_DIR)/RouteServer4.cpp
+	$(TARGET_CXX) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/RouteServer6Client.o -c $(PKG_BUILD_DIR)/RouteServer6Client.cpp
+	$(TARGET_CXX) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/RouteServer6.o -c $(PKG_BUILD_DIR)/RouteServer6.cpp
+	$(TARGET_CXX) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/Switch.o -c $(PKG_BUILD_DIR)/Switch.cpp
+	$(TARGET_CXX) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/TunTap.o -c $(PKG_BUILD_DIR)/TunTap.cpp
+
+	$(TARGET_CXX) $(TARGET_LDFLAGS) -o $(PKG_BUILD_DIR)/$1 $(PKG_BUILD_DIR)/*.o
 endef
 
 # Package install instructions; create a directory inside the package to hold our executable, and then copy the executable we built previously into the folder
