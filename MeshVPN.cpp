@@ -93,6 +93,7 @@ void MeshVPN::SaveNodes(char* Filename)
 				printf("%s", Line);
 		}
 	}
+	close(fd);
 }
 void MeshVPN::LoadNodes(char* Filename)
 {
