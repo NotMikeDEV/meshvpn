@@ -60,7 +60,7 @@ void Switch::Init(char* InterfaceName, unsigned short Port, int RoutingTable)
 	}
 	socklen_t addrlen = sizeof(server_addr);
 	getsockname(Socket, (struct sockaddr *)&server_addr, &addrlen);
-	this->Port = htons(server_addr.sin6_port);
+	this->Port = Port;
 	fcntl(Socket, F_SETFL, O_NONBLOCK);
 	if (Debug)
 	{
@@ -280,6 +280,13 @@ void Switch::ParsePacket(unsigned char Type, unsigned char* FromKey, unsigned ch
 		case 0x00:
 		{
 			AddRemote(Address, false);
+            if (Length >= 2) {
+                unsigned short ReportedPort = htons(*(unsigned short*)Payload);
+                struct sockaddr_in6 ReportedAddress = *(struct sockaddr_in6*)Address;
+                ReportedAddress.sin6_port = htons(ReportedPort);
+                AddRemote(&ReportedAddress, false);
+            }
+
 			RemoteNode* Node = GetRemote(Address);
 			if (Debug > 1)
 			{
@@ -289,13 +296,15 @@ void Switch::ParsePacket(unsigned char Type, unsigned char* FromKey, unsigned ch
 			}
 			memcpy(&Node->NodeKey, FromKey, sizeof(Node->NodeKey));
 			Node->NextSend = time(NULL) + 5;
-			unsigned char IPs[4 + 16] = { 0 };
+			unsigned char IPs[4 + 16 + 2] = { 0 };
 			if (RoutingTable != -1)
 			{
 				memcpy(IPs, GetIPv4(), 4);
 				memcpy(IPs + 4, GetIPv6(), 16);
+                unsigned short Port = htons(this->Port);
+                memcpy(IPs + 4 + 16, &Port, 2);
 			}
-			SendRemote(Node, 0x01, IPs, 4+16);
+			SendRemote(Node, 0x01, IPs, 4 + 16 + 2);
 		}
 		break;
 		case 0x01:
@@ -305,8 +314,9 @@ void Switch::ParsePacket(unsigned char Type, unsigned char* FromKey, unsigned ch
 				RemoteNode* Node = GetRemote(Address);
 				if (Node)
 				{
-					Node->SetIPv4((struct in_addr*)Payload);
-					Node->SetIPv6((struct in6_addr*)(Payload + 4));
+                    unsigned short ReportedPort = htons(*(unsigned short*)(Payload + 4 + 16));
+					Node->SetIPv4((struct in_addr*)Payload, ReportedPort);
+					Node->SetIPv6((struct in6_addr*)(Payload + 4), ReportedPort);
 					Node->SetStatus(1);
 					Node->NextSend = time(NULL);
 					Node->LastRecv = time(NULL);
@@ -323,16 +333,18 @@ void Switch::ParsePacket(unsigned char Type, unsigned char* FromKey, unsigned ch
 						char IPv4[128];
 						inet_ntop(AF_INET, Node->GetIPv4(), IPv4, sizeof(IPv4));
 						inet_ntop(AF_INET6, Node->GetIPv6(), IPv6, sizeof(IPv6));
-						printf(") %s %s\n", IPv4, IPv6);
+						printf(") %s %s %u\n", IPv4, IPv6, Node->Port);
 					}
-					unsigned char IPs[4 + 16] = { 0 };
+					unsigned char IPs[4 + 16 + 2] = { 0 };
 					if (RoutingTable != -1)
 					{
 						memcpy(IPs, GetIPv4(), 4);
 						memcpy(IPs + 4, GetIPv6(), 16);
+                        unsigned short Port = htons(this->Port);
+						memcpy(IPs + 4 + 16, &Port, 2);
 					}
-					SendRemote(Node, 0x02, IPs, 4 + 16);
-				}
+					SendRemote(Node, 0x02, IPs, 4 + 16 + 2);
+                }
 			}
 		}
 		break;
@@ -343,8 +355,9 @@ void Switch::ParsePacket(unsigned char Type, unsigned char* FromKey, unsigned ch
 				RemoteNode* Node = GetRemote(FromKey);
 				if (Node)
 				{
-					Node->SetIPv4((struct in_addr*)Payload);
-					Node->SetIPv6((struct in6_addr*)(Payload + 4));
+                    unsigned short ReportedPort = htons(*(unsigned short*)(Payload + 4 + 16));
+					Node->SetIPv4((struct in_addr*)Payload, ReportedPort);
+					Node->SetIPv6((struct in6_addr*)(Payload + 4), ReportedPort);
 					Node->SetStatus(1);
 					Node->NextSend = time(NULL);
 					Node->LastRecv = time(NULL);
@@ -360,7 +373,7 @@ void Switch::ParsePacket(unsigned char Type, unsigned char* FromKey, unsigned ch
 						char IPv4[128];
 						inet_ntop(AF_INET, Node->GetIPv4(), IPv4, sizeof(IPv4));
 						inet_ntop(AF_INET6, Node->GetIPv6(), IPv6, sizeof(IPv6));
-						printf(") %s %s\n", IPv4, IPv6);
+						printf(") %s %s %u\n", IPv4, IPv6, Node->Port);
 					}
 				}
 			}

@@ -13,6 +13,7 @@ RemoteNode::RemoteNode(struct sockaddr_in6* Address, Switch* Switch, MeshVPN* ap
 	this->Address.sin6_family = AF_INET6;
 	memcpy(&this->Address.sin6_addr, &Address->sin6_addr, sizeof(struct in6_addr));
 	this->Address.sin6_port = Address->sin6_port;
+    this->Port = htons(Address->sin6_port);
 	this->Latency = 1000;
 }
 RemoteNode::~RemoteNode()
@@ -23,28 +24,30 @@ RemoteNode::~RemoteNode()
 	if (RC6)
 		delete RC6;
 }
-void RemoteNode::SetIPv4(struct in_addr* IP)
+void RemoteNode::SetIPv4(struct in_addr* IP, unsigned short Port)
 {
+    this->Port = Port;
 	if (Status && ParentSwitch->RoutingTable != -1 && memcmp(IP, &IPv4, 4))
 	{
 		if (RC4)
 			delete RC4;
 		memcpy(&IPv4, IP, 4);
-		RC4 = new RouteClient4(app, this, &IPv4, htons(Address.sin6_port));
+		RC4 = new RouteClient4(app, this, &IPv4, Port);
 	}
 	else
 	{
 		memcpy(&IPv4, IP, 4);
 	}
 }
-void RemoteNode::SetIPv6(struct in6_addr* IP)
+void RemoteNode::SetIPv6(struct in6_addr* IP, unsigned short Port)
 {
+    this->Port = Port;
 	if (Status && ParentSwitch->RoutingTable != -1 && memcmp(IP, &IPv6, 16))
 	{
 		if (RC6)
 			delete RC6;
 		memcpy(&IPv6, IP, 16);
-		RC6 = new RouteClient6(app, this, &IPv6, htons(Address.sin6_port));
+		RC6 = new RouteClient6(app, this, &IPv6, Port);
 	}
 	else
 	{
@@ -70,11 +73,11 @@ void RemoteNode::SetStatus(unsigned char Status)
 	{
 		if (ParentSwitch->RoutingTable != -1 && Status && !this->Status && inet_netof(IPv4) != INADDR_ANY)
 		{
-			RC4 = new RouteClient4(app, this, &IPv4, htons(Address.sin6_port));
+			RC4 = new RouteClient4(app, this, &IPv4, Port);
 		}
 		if (ParentSwitch->RoutingTable != -1 && Status && !this->Status && memcmp(&IPv6, &in6addr_any, sizeof(struct in6_addr)))
 		{
-			RC6 = new RouteClient6(app, this, &IPv6, htons(Address.sin6_port));
+			RC6 = new RouteClient6(app, this, &IPv6, Port);
 		}
 		Retries = 0;
 	}
@@ -114,7 +117,8 @@ void RemoteNode::DoNextSend(time_t Time)
 			inet_ntop(AF_INET6, &Address.sin6_addr, IPv6, sizeof(IPv6));
 			printf("Send INIT to %s %u\n", IPv6, htons(Address.sin6_port));
 		}
-		ParentSwitch->SendRemote(this, 0x00, NULL, 0);
+        unsigned short Port = htons(this->Port);
+		ParentSwitch->SendRemote(this, 0x00, (unsigned char*)&Port, 2);
 	}
 	if (Status == 1)
 	{

@@ -84,6 +84,16 @@ void MeshVPN::SaveNodes(char* Filename)
 			inet_ntop(AF_INET6, &n->Address.sin6_addr, IP, sizeof(IP));
 			sprintf(Line, "node %s %u %s %u %ums\n", IP, htons(n->Address.sin6_port), NodeKey, n->GetStatus(), n->Latency);
 			write(fd, Line, strlen(Line));
+
+			inet_ntop(AF_INET, &n->IPv4, IP, sizeof(IP));
+			sprintf(Line, "IPv4 %s\n", IP);
+            write(fd, Line, strlen(Line));
+			inet_ntop(AF_INET6, &n->IPv6, IP, sizeof(IP));
+			sprintf(Line, "IPv6 %s\n", IP);
+            write(fd, Line, strlen(Line));
+			sprintf(Line, "Port %u\n", n->Port);
+            write(fd, Line, strlen(Line));
+
 			for (struct MAC &E : n->MACs)
 			{
 				sprintf(Line, "MAC %02X%02X%02X%02X%02X%02X\n", E.a[0], E.a[1], E.a[2], E.a[3], E.a[4], E.a[5]);

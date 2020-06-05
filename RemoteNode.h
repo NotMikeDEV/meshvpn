@@ -10,12 +10,13 @@ class NetLink6;
 class RemoteNode {
 	unsigned char Status = 0;
 	int Retries = 0;
-	struct in_addr IPv4;
-	struct in6_addr IPv6;
 	MeshVPN* app;
 	RouteClient4* RC4 = NULL;
 	RouteClient6* RC6 = NULL;
 public:
+	struct in_addr IPv4;
+	struct in6_addr IPv6;
+    unsigned short Port;
 	Switch* ParentSwitch;
 	RemoteNode(struct sockaddr_in6* address, Switch* Switch, MeshVPN* app);
 	~RemoteNode();
@@ -23,8 +24,8 @@ public:
 	unsigned char GetRetries();
 	void IncrementRetryCount();
 	void SetStatus(unsigned char Status);
-	void SetIPv4(struct in_addr* IP);
-	void SetIPv6(struct in6_addr* IP);
+	void SetIPv4(struct in_addr* IP, unsigned short Port);
+	void SetIPv6(struct in6_addr* IP, unsigned short Port);
 	struct in_addr* GetIPv4();
 	struct in6_addr* GetIPv6();
 	std::vector<MAC> MACs;
